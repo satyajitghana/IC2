@@ -66,7 +66,7 @@ def homomorphic_filter(img, resize=False):
     """
     applies homomorphic filtering on image.
 
-    :param img:     the image
+    :param img:     the image (from dcm file data)
     :param resize:  defaults to False. otherwise a tuple consisting of new 
                     image size
 
@@ -75,7 +75,8 @@ def homomorphic_filter(img, resize=False):
 
     if resize:
         img = skimage.transform.resize(img, resize, anti_aliasing=True)
-    
+    else:
+        img = im2double(img) 
     imgLog = np.log1p(img)
     Iout = high_pass_filter(imgLog, 10)
     return np.expm1(Iout)
@@ -94,11 +95,28 @@ def save_image(img, name):
 
     plt.imsave(path, img, cmap='bone')
 
+def im2double(img):
+    """
+    converts image to double values ranging from 0 to 1. if image is already of float type,
+    returns the image as is.
+
+    :param img: the image to convert.
+
+    :return:    the converted image.
+    """
+
+    if img.dtype == np.dtype("float"):
+        return img
+
+    info = np.iinfo(img.dtype)
+    return img.astype(np.float)/info.max
+
+
 if __name__ == "__main__":
     if len(sys.argv) != 2 or sys.argv[1] == "-h":
         print("syntax: homomorphic_filter.py [file_name]")
         sys.exit(-1)
 
     dcm_data = load_dcm(sys.argv[1])
-    Ihmf = homomorphic_filter(dcm_data.pixel_array, resize=(256,172))
+    Ihmf = homomorphic_filter(dcm_data.pixel_array)
     save_image(Ihmf, sys.argv[1].split(".")[0]+"OUT.jpg")
