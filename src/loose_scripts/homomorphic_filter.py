@@ -92,7 +92,7 @@ def save_image(img, name):
     rootFolder = cwd[:cwd.rfind("/", 0, cwd.rfind("/"))]
     path = rootFolder+"/res/images/output/"+name
 
-    plt.imsave(path, img, cmap=plt.cm.bone)
+    plt.imsave(path, img, cmap='bone')
 
 if __name__ == "__main__":
     if len(sys.argv) != 2 or sys.argv[1] == "-h":
