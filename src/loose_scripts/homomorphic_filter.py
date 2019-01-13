@@ -1,7 +1,7 @@
 import sys, os
 import pydicom
 import numpy as np
-import skimage
+import cv2
 import matplotlib.pyplot as plt
 
 def load_dcm(name):
@@ -74,14 +74,61 @@ def homomorphic_filter(img, resize=False):
     """
 
     if resize:
-        img = skimage.transform.resize(img, resize, anti_aliasing=True)
-    else:
-        img = im2double(img) 
+        # img = skimage.transform.resize(img, resize, anti_aliasing=True)
+        img = cv2.resize(img, resize)
+    
+    img = im2double(img) 
     imgLog = np.log1p(img)
     Iout = high_pass_filter(imgLog, 10)
     return np.expm1(Iout)
     
-def save_image(img, name):
+def imtophat(img, se_type, se_size):
+    """
+    applies tophat transform on image.
+
+    :param img:     the image
+    :param se_type: the type of structuring element(from opencv)
+    :param se_size: the size of the structuring element
+
+    :return:        the transformed image
+    """
+
+    se = cv2.getStructuringElement(se_type, se_size)
+    return cv2.morphologyEx(img, cv2.MORPH_TOPHAT, se)
+
+def imbothat(img, se_type, se_size):
+    """
+    applies tophat transform on image.
+
+    :param img:     the image
+    :param se_type: the type of structuring element(from opencv)
+    :param se_size: the size of the structuring element
+
+    :return:        the transformed image
+    """
+
+    se = cv2.getStructuringElement(se_type, se_size)
+    return cv2.morphologyEx(img, cv2.MORPH_BLACKHAT, se)
+
+
+def adapthisteq(img, clip_limit = 0.02, tile_grid_size = (8, 8)):
+    """
+    performs Constrast Limiting Adaptive Histogram Equalization on image.
+
+    :param img:             the input image
+    :param clip_limit:      the clip limit for CLAHE
+    :param tile_grid_size:  the tile size for CLAHE
+
+    :return:                the processed image
+    """
+
+    if img.dtype == np.dtype("float"):
+        img = np.interp(img, (img.min(), img.max()), (0, 255)).astype('uint8')
+
+    clahe = cv2.createCLAHE(clipLimit=clip_limit, tileGridSize=tile_grid_size)
+    return clahe.apply(img)
+
+def save_image(img, name, cm=False):
     """
     saves the image to res/images/output
 
@@ -93,7 +140,12 @@ def save_image(img, name):
     rootFolder = cwd[:cwd.rfind("/", 0, cwd.rfind("/"))]
     path = rootFolder+"/res/images/output/"+name
 
-    plt.imsave(path, img, cmap='bone')
+    if cm == True:
+        plt.imsave(path, img, cmap="bone")
+    elif cm != True and cm != False:
+        plt.imsave(path, img, cmap=cm) 
+    else:
+        cv2.imwrite(path, img*255)
 
 def im2double(img):
     """
@@ -112,11 +164,22 @@ def im2double(img):
     return img.astype(np.float)/info.max
 
 
+
 if __name__ == "__main__":
     if len(sys.argv) != 2 or sys.argv[1] == "-h":
         print("syntax: homomorphic_filter.py [file_name]")
         sys.exit(-1)
 
     dcm_data = load_dcm(sys.argv[1])
-    Ihmf = homomorphic_filter(dcm_data.pixel_array)
-    save_image(Ihmf, sys.argv[1].split(".")[0]+"OUT.jpg")
+    Ihmf = homomorphic_filter(dcm_data.pixel_array, resize=(172, 256))
+    save_image(Ihmf, sys.argv[1].split(".")[0]+"-HomomorphicFilter.jpg")
+   
+    tophat = imtophat(Ihmf, cv2.MORPH_ELLIPSE, (29, 29))
+    save_image(tophat, sys.argv[1].split(".")[0]+"-tophat.jpg")
+    
+    bothat = imbothat(Ihmf, cv2.MORPH_ELLIPSE, (29, 29))
+    save_image(bothat, sys.argv[1].split(".")[0]+"-bothat.jpg")
+
+    processedImage = adapthisteq((Ihmf + tophat) - bothat)
+    save_image(processedImage, sys.argv[1].split(".")[0]+"-CLAHE.jpg", cm="gray")
+
