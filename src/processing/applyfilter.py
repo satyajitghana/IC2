@@ -63,17 +63,23 @@ def create_logger(verbose):
 
 
 if __name__ == "__main__":
-    if len(sys.argv) < 2 or len(sys.argv) > 3:
+    if len(sys.argv) > 3:
         print("invalid number of arguments.")
         sys.exit(-1)
-    if  len(sys.argv) == 3 and sys.argv[2] == "-v":
+    
+    if  (len(sys.argv) == 3 and sys.argv[2] == "-v") or (len(sys.argv) == 1):
         logger = create_logger(True)
     else:
         logger = create_logger(False)
+
+    if len(sys.argv) == 1:
+        name = "000000.dcm"
+    else:
+        name = sys.argv[1]
+    resize = (256, 172)
     
     proc = Processor()
-    proc.load_dcm(sys.argv[1], (256, 172))
-    #proc.load_dcm(sys.argv[1])
+    proc.load_dcm(name, resize)
     proc.apply_filters()
     proc.filtered_show()
     
